@@ -1,4 +1,6 @@
 # coding=utf-8
+from typing import Union
+
 from .tokens import Token, TokenType
 from .lexer import Lexer
 
@@ -26,6 +28,9 @@ class Num(AST):
     def __init__(self, token: Token):
         self.token = token
         self.value = token.value
+
+
+ASTType = Union[BinOp, Num]
 
 
 # PARSER

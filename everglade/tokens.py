@@ -15,12 +15,16 @@ class AutoName(Enum):
 
 class TokenType(AutoName):
     INTEGER = auto()
+    STRING = auto()
+
     PLUS = auto()
     MINUS = auto()
     MUL = auto()
     DIV = auto()
+
     LPAR = auto()
     RPAR = auto()
+
     EOF = auto()
 
 
