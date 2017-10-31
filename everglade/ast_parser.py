@@ -13,7 +13,7 @@ class AST:
 
 class BinOp(AST):
     """
-    Binary operator: no precedence
+    Binary operator
     """
     def __init__(self, left: Token, op: Token, right: Token):
         self.left = left
@@ -30,14 +30,57 @@ class Num(AST):
         self.value = token.value
 
 
-ASTType = Union[BinOp, Num]
+class String(AST):
+    def __init__(self, content):
+        self.content = content
+
+
+class UnaryOp(AST):
+    def __init__(self, op, expr):
+        self.token = self.op = op
+        self.expr = expr
+
+
+class Compound(AST):
+    def __init__(self):
+        self.children = []
+
+
+class Assign(AST):
+    def __init__(self, left, op, right):
+        self.left = left
+        self.token = self.op = op
+        self.right = right
+
+
+class Var(AST):
+    def __init__(self, token):
+        self.token = token
+        self.value = token.value
+
+
+class Function(AST):
+    def __init__(self, fn, params):
+        self.fn = fn
+        self.params = params
+
+
+class NoOp(AST):
+    pass
+
+
+ASTType = Union[BinOp, Num, Var, Assign, Compound, NoOp, Function, String]
 
 
 # PARSER
 
 class Parser:
     def __init__(self, lexer: Lexer):
-        self.lexer = lexer
+        if not isinstance(lexer, Lexer):
+            self.lexer = Lexer(lexer)
+        else:
+            self.lexer = lexer
+
         # Gets first token
         self.current = self.lexer.next_token()
 
@@ -45,27 +88,51 @@ class Parser:
         if self.current.type == token_type:
             self.current = self.lexer.next_token()
         else:
-            raise TypeError("unexpected token, wanted {}".format(token_type))
-
+            raise TypeError("unexpected token ({}), wanted {}".format(self.current, token_type))
 
     # GRAMMAR
     def factor(self):
         """
-        INT | LPAR expr RPAR
+        factor: PLUS factor
+              | MINUS factor
+              | INT
+              | FLOAT
+              | STRING
+              | LPAR expr RPAR
+              | variable
         """
         token = self.current
+
+        if token.type == TokenType.PLUS:
+            self.move(TokenType.PLUS)
+            return UnaryOp(token, self.factor())
+        elif token.type == TokenType.MINUS:
+            self.move(TokenType.MINUS)
+            return UnaryOp(token, self.factor())
+
         if token.type == TokenType.INTEGER:
             self.move(TokenType.INTEGER)
             return Num(token)
+        elif token.type == TokenType.FLOAT:
+            self.move(TokenType.FLOAT)
+            return token
+
         elif token.type == TokenType.LPAR:
             self.move(TokenType.LPAR)
             node = self.expr()
             self.move(TokenType.RPAR)
             return node
 
+        elif token.type == TokenType.STRING:
+            return String(token.value)
+
+        else:
+            node = self.variable()
+            return node
+
     def term(self):
         """
-        factor ((MUL | DIV) factor)*
+        term: factor ((MUL | DIV) factor)*
         """
         node = self.factor()
 
@@ -83,7 +150,7 @@ class Parser:
 
     def expr(self):
         """
-        term ((PLUS | MINUS) term)*
+        expr: term ((PLUS | MINUS) term)*
         """
         node = self.term()
 
@@ -99,8 +166,95 @@ class Parser:
 
         return node
 
+    # Second part
+    def program(self):
+        """
+        program: statement_list EOF
+        """
+        root = Compound()
+        nodes = self.statement_list()
+
+        for node in nodes:
+            root.children.append(node)
+
+        return root
+
+    def statement_list(self) -> list:
+        """
+        statement_list: (statement EOL)*
+        """
+        stmt = self.statement()
+
+        res = [stmt]
+        while self.current.type == TokenType.EOL:
+            self.move(TokenType.EOL)
+            res.append(self.statement())
+
+        return res
+
+    def statement(self):
+        """
+        statement: assignment_statement | execution_statement
+                 | def_statement | empty | comment
+        """
+        # Assignment
+        if self.current.type == TokenType.ID:
+            return self.assignment_stmt()
+        # Function execution
+        if self.current.type == TokenType.DOLLAR:
+            return self.execution_stmt()
+
+        # TODO
+
+    def assignment_stmt(self):
+        """
+        assignment_statement: variable ASSIGN expr
+        """
+        print("assigment called,", self.current)
+        var = self.variable()
+        # Must be ASSIGN
+        assign = self.current
+        self.move(TokenType.ASSIGN)
+        value = self.expr()
+
+        return Assign(var, assign, value)
+
+    def parameter_list(self):
+        first = self.expr()
+
+        nodes = [first]
+        while self.current.type == TokenType.COMMA:
+            self.move(TokenType.COMMA)
+            nodes.append(self.expr())
+
+        return nodes
+
+    def execution_stmt(self):
+        self.move(TokenType.DOLLAR)
+
+        fn_name = self.variable()
+
+        # Has parameters
+        if self.current.type == TokenType.SQ_BRACKET_L:
+            self.move(TokenType.SQ_BRACKET_L)
+            param = self.parameter_list()
+            self.move(TokenType.SQ_BRACKET_R)
+        else:
+            param = []
+
+        return Function(fn_name, param)
+
+    def variable(self):
+        print("getting var,", self.current)
+        node = Var(self.current)
+        self.move(TokenType.ID)
+        return node
+
+    @staticmethod
+    def empty():
+        return NoOp()
+
+    # STARTING METHOD
     def parse(self):
-        """
-        Parse whole expression
-        """
-        return self.expr()
+        node = self.program()
+        return node
