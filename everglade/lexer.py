@@ -1,5 +1,5 @@
 # coding=utf-8
-from .tokens import TokenType, Token
+from everglade.tokens import TokenType, Token
 
 
 class Lexer:
@@ -13,16 +13,23 @@ class Lexer:
         self.pos += 1
 
         # Check for end of text
-        if self.pos > len(self.text) -1:
+        if self.pos > len(self.text) - 1:
             self.char = None
         else:
             self.char = self.text[self.pos]
+
+    def peek(self, amount: int=1):
+        peek_pos = self.pos + amount
+        if peek_pos > len(self.text) - 1:
+            return None
+        else:
+            return self.text[peek_pos]
 
     def skip_whitespace(self):
         while self.char is not None and self.char.isspace():
             self.shift()
 
-    def integer(self):
+    def integer(self) -> int:
         res = ""
         while self.char is not None and self.char.isdigit():
             res += self.char
@@ -30,24 +37,98 @@ class Lexer:
 
         return int(res)
 
+    def auto_number(self) -> Token:
+        temp = str(self.integer())
+
+        if self.char == ".":
+            self.shift()
+            temp += "." + str(self.integer())
+
+            return Token(TokenType.FLOAT, float(temp))
+
+        return Token(TokenType.INTEGER, int(temp))
+
+    def string(self) -> str:
+        # Skip "
+        self.shift()
+
+        res = ""
+        while self.char != "\"":
+            res += self.char
+            self.shift()
+
+        # Skip second "
+        self.shift()
+
+        return res
+
+    def _reserved(self):
+        """
+        Handles reserved keywords
+        """
+        res = ""
+        while self.char is not None and self.char.isalnum():
+            res += self.char
+            self.shift()
+
+        tok = SPECIAL_KEYWORDS.get(res, Token(TokenType.ID, res))
+        return tok
+
     def next_token(self):
         while self.char is not None:
-
             # Parses different tokens
-            if self.char.isspace():
+
+            # VARIABLES, BASIC TYPES
+            if self.char.isspace() and self.char != "\n":
                 self.skip_whitespace()
                 continue
+            if self.char == "\n":
+                self.shift()
+                return Token(TokenType.EOL, "\n")
 
             if self.char.isdigit():
-                return Token(TokenType.INTEGER, self.integer())
+                # Could be FLOAT or INT
+                return self.auto_number()
+            if self.char.isalnum():
+                return self._reserved()
+            if self.char == "\"":
+                return Token(TokenType.STRING, self.string())
 
+            # OTHER OPERATORS
+            if self.char == "=":
+                self.shift()
+                return Token(TokenType.ASSIGN, "=")
+            if self.char == "$":
+                self.shift()
+                return Token(TokenType.DOLLAR, "$")
+            if self.char == "~":
+                self.shift()
+                return Token(TokenType.TILDE, "~")
+            if self.char == ",":
+                self.shift()
+                return Token(TokenType.COMMA, ",")
+
+            if self.char == "[":
+                self.shift()
+                return Token(TokenType.SQ_BRACKET_L, "[")
+            if self.char == "]":
+                self.shift()
+                return Token(TokenType.SQ_BRACKET_R, "[")
+
+            if self.char == "{":
+                self.shift()
+                return Token(TokenType.C_BRACKET_L, "{")
+            if self.char == "}":
+                self.shift()
+                return Token(TokenType.C_BRACKET_R, "}")
+
+            # MATH
             if self.char == "+":
                 self.shift()
                 return Token(TokenType.PLUS, "+")
             if self.char == "-":
                 self.shift()
                 return Token(TokenType.MINUS, "-")
-
             if self.char == "*":
                 self.shift()
                 return Token(TokenType.MUL, "*")
@@ -66,4 +147,3 @@ class Lexer:
             raise TypeError("not a valid token: {}".format(self.char))
 
         return Token(TokenType.EOF, None)
-

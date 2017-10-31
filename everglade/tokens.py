@@ -15,6 +15,7 @@ class AutoName(Enum):
 
 class TokenType(AutoName):
     INTEGER = auto()
+    FLOAT = auto()
     STRING = auto()
 
     PLUS = auto()
@@ -26,6 +27,18 @@ class TokenType(AutoName):
     RPAR = auto()
 
     EOF = auto()
+    EOL = auto()
+
+    ASSIGN = auto()
+    DOLLAR = auto()
+    TILDE = auto()
+    COMMA = auto()
+    ID = auto()
+
+    SQ_BRACKET_L = auto()
+    SQ_BRACKET_R = auto()
+    C_BRACKET_L = auto()
+    C_BRACKET_R = auto()
 
 
 class Token:
