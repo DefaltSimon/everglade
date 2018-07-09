@@ -1,0 +1,25 @@
+program: (BEGIN statement_list* END)* EOF
+
+statement_list: (statement EOL)*
+statement: assignment_statement | execution_statement | def_statement
+         | empty | comment
+
+assignment_statement: variable ASSIGN expr
+execution_statement: "$" variable PARAM
+def_statement: TILDE builtin ARGLIST C_BRACKET_L statement_list C_BRACKET_R
+
+empty: (TAB | SPACE)* EOL
+comment: "#" STRING
+
+expr: term ((PLUS | MINUS) term)*
+
+term: factor ((MUL | DIV) factor)*
+factor: PLUS factor
+      | MINUS factor
+      | INT
+      | FLOAT
+      | STRING
+      | LPAR expr RPAR
+      | variable
+
+variable: ID

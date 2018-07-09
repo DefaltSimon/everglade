@@ -35,6 +35,9 @@ class TokenType(AutoName):
     COMMA = auto()
     ID = auto()
 
+    # BEGIN = auto()
+    # END = auto()
+
     SQ_BRACKET_L = auto()
     SQ_BRACKET_R = auto()
     C_BRACKET_L = auto()

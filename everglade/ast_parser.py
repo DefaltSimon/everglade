@@ -75,7 +75,7 @@ ASTType = Union[BinOp, Num, Var, Assign, Compound, NoOp, Function, String]
 # PARSER
 
 class Parser:
-    def __init__(self, lexer: Lexer):
+    def __init__(self, lexer: Union[Lexer, str]):
         if not isinstance(lexer, Lexer):
             self.lexer = Lexer(lexer)
         else:
@@ -88,7 +88,7 @@ class Parser:
         if self.current.type == token_type:
             self.current = self.lexer.next_token()
         else:
-            raise TypeError("unexpected token ({}), wanted {}".format(self.current, token_type))
+            raise TypeError("unexpected token {}, wanted {}".format(self.current, token_type))
 
     # GRAMMAR
     def factor(self):
@@ -124,6 +124,7 @@ class Parser:
             return node
 
         elif token.type == TokenType.STRING:
+            self.move(TokenType.STRING)
             return String(token.value)
 
         else:
@@ -172,6 +173,7 @@ class Parser:
         program: statement_list EOF
         """
         root = Compound()
+
         nodes = self.statement_list()
 
         for node in nodes:
@@ -179,14 +181,14 @@ class Parser:
 
         return root
 
-    def statement_list(self) -> list:
+    def statement_list(self, end_type=TokenType.EOL) -> list:
         """
         statement_list: (statement EOL)*
         """
         stmt = self.statement()
 
         res = [stmt]
-        while self.current.type == TokenType.EOL:
+        while self.current.type == end_type:
             self.move(TokenType.EOL)
             res.append(self.statement())
 
@@ -210,7 +212,6 @@ class Parser:
         """
         assignment_statement: variable ASSIGN expr
         """
-        print("assigment called,", self.current)
         var = self.variable()
         # Must be ASSIGN
         assign = self.current
@@ -235,17 +236,16 @@ class Parser:
         fn_name = self.variable()
 
         # Has parameters
-        if self.current.type == TokenType.SQ_BRACKET_L:
-            self.move(TokenType.SQ_BRACKET_L)
+        if self.current.type == TokenType.LPAR:
+            self.move(TokenType.LPAR)
             param = self.parameter_list()
-            self.move(TokenType.SQ_BRACKET_R)
+            self.move(TokenType.RPAR)
         else:
             param = []
 
         return Function(fn_name, param)
 
     def variable(self):
-        print("getting var,", self.current)
         node = Var(self.current)
         self.move(TokenType.ID)
         return node

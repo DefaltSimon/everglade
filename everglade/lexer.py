@@ -1,6 +1,12 @@
 # coding=utf-8
 from everglade.tokens import TokenType, Token
 
+ALLOWED_CHARS = "abcdefghijklmnopqrstuvwxyz_"
+
+
+def is_special(char: str) -> bool:
+    return char in ALLOWED_CHARS
+
 
 class Lexer:
     def __init__(self, raw_text):
@@ -48,30 +54,30 @@ class Lexer:
 
         return Token(TokenType.INTEGER, int(temp))
 
-    def string(self) -> str:
+    def string(self, char="\"") -> str:
         # Skip "
         self.shift()
 
         res = ""
-        while self.char != "\"":
+        while self.char != char:
             res += self.char
             self.shift()
 
-        # Skip second "
+        # Skip second "/'
         self.shift()
-
         return res
 
-    def _reserved(self):
+    def reserved(self):
         """
         Handles reserved keywords
         """
         res = ""
-        while self.char is not None and self.char.isalnum():
+        while self.char is not None and is_special(self.char):
             res += self.char
             self.shift()
 
-        tok = SPECIAL_KEYWORDS.get(res, Token(TokenType.ID, res))
+        # tok = SPECIAL_KEYWORDS.get(res, Token(TokenType.ID, res))
+        tok = Token(TokenType.ID, res)
         return tok
 
     def next_token(self):
@@ -86,13 +92,26 @@ class Lexer:
                 self.shift()
                 return Token(TokenType.EOL, "\n")
 
+            # if self.char == "<" and self.peek() == "m":
+            #     self.shift()
+            #     self.shift()
+            #     return Token(TokenType.BEGIN, "<m")
+            # if self.char == "m" and self.peek() == ">":
+            #     self.shift()
+            #     self.shift()
+            #     return Token(TokenType.END, "m>")
+
             if self.char.isdigit():
                 # Could be FLOAT or INT
                 return self.auto_number()
-            if self.char.isalnum():
-                return self._reserved()
+            # SPECIAL
+            if is_special(self.char):
+                return self.reserved()
+            # STRING
             if self.char == "\"":
                 return Token(TokenType.STRING, self.string())
+            if self.char == "'":
+                return Token(TokenType.STRING, self.string("'"))
 
             # OTHER OPERATORS
             if self.char == "=":
